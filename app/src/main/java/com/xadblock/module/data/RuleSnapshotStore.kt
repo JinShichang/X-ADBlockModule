@@ -50,6 +50,7 @@ object RuleSnapshotStore {
             .putBoolean(Contract.KEY_OPT_GROK, settings.optGrok)
             .putBoolean(Contract.KEY_SKIP_VERIFIED, settings.skipVerified)
             .putBoolean(Contract.KEY_RECORD_VIEWS, settings.recordViews)
+            .putBoolean(Contract.KEY_LOGGING_ENABLED, settings.loggingEnabled)
             .putStringSet(Contract.KEY_WHITELIST_USERS, settings.whitelistUsers)
             .putString(Contract.KEY_MARK_TEXT, settings.markText)
             .commit()) {
@@ -68,6 +69,7 @@ object RuleSnapshotStore {
             append("#optGrok=").append(settings.optGrok).append('\n')
             append("#skipVerified=").append(settings.skipVerified).append('\n')
             append("#recordViews=").append(settings.recordViews).append('\n')
+            append("#loggingEnabled=").append(settings.loggingEnabled).append('\n')
             append("#mark=").append(settings.markText).append('\n')
             append("#whitelist=").append(settings.whitelistUsers.joinToString("\t")).append('\n')
         }
@@ -90,6 +92,7 @@ object RuleSnapshotStore {
             append(settings.optGrok).append('|')
             append(settings.skipVerified).append('|')
             append(settings.recordViews).append('|')
+            append(settings.loggingEnabled).append('|')
             append(settings.markText).append('|')
             settings.whitelistUsers.sorted().forEach { append(it).append('|') }
         }

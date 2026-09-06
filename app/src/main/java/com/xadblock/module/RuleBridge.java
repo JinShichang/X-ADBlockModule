@@ -142,6 +142,7 @@ public final class RuleBridge {
             snapshotPrefs = null;
             HookEntry.log("Remote Preferences unavailable; using packaged bootstrap: " + throwable);
         }
+        HookEntry.refreshLoggingPolicy();
         reloadIfChanged(true);
         lastHeartbeatStatus = "ACTIVE";
         android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -178,6 +179,7 @@ public final class RuleBridge {
         INITIALIZED.set(false);
         lastSnapshotVersion = Long.MIN_VALUE;
         lastHeartbeatStatus = "STARTING";
+        HookEntry.resetLoggingPolicy();
     }
 
     /**
@@ -290,6 +292,7 @@ public final class RuleBridge {
             optGrok = boolSetting(settings, "optGrok", false);
             skipVerified = boolSetting(settings, "skipVerified", false);
             recordViews = boolSetting(settings, "recordViews", true);
+            HookEntry.setLoggingEnabled(boolSetting(settings, "loggingEnabled", true));
             String text = settings.get("mark");
             markText = (text == null || text.isEmpty() || "已屏蔽".equals(text))
                     ? "[已拦截]" : text;
@@ -333,6 +336,8 @@ public final class RuleBridge {
             optGrok = prefs.getBoolean(Contract.KEY_OPT_GROK, false);
             skipVerified = prefs.getBoolean(Contract.KEY_SKIP_VERIFIED, false);
             recordViews = prefs.getBoolean(Contract.KEY_RECORD_VIEWS, true);
+            HookEntry.setLoggingEnabled(
+                    prefs.getBoolean(Contract.KEY_LOGGING_ENABLED, true));
             java.util.Set<String> configuredUsers = prefs.getStringSet(
                     Contract.KEY_WHITELIST_USERS, Collections.emptySet());
             java.util.HashSet<String> normalizedUsers = new java.util.HashSet<>();
@@ -360,6 +365,7 @@ public final class RuleBridge {
                 || Contract.KEY_OPT_GROK.equals(key)
                 || Contract.KEY_SKIP_VERIFIED.equals(key)
                 || Contract.KEY_RECORD_VIEWS.equals(key)
+                || Contract.KEY_LOGGING_ENABLED.equals(key)
                 || Contract.KEY_WHITELIST_USERS.equals(key)
                 || Contract.KEY_MARK_TEXT.equals(key);
     }

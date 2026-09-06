@@ -19,6 +19,7 @@ object SettingsStore {
     private const val KEY_MARK_TEXT = "mark_text"
     private const val KEY_WHITELIST_USERS = "whitelist_users"
     private const val KEY_RECORD_VIEWS = "record_views"
+    private const val KEY_LOGGING_ENABLED = "logging_enabled"
 
     data class Settings(
         val displayMode: Int = Contract.DISPLAY_MODE_MARK,
@@ -29,6 +30,7 @@ object SettingsStore {
         val markText: String = DEFAULT_MARK_TEXT,
         val skipVerified: Boolean = false,
         val recordViews: Boolean = true,
+        val loggingEnabled: Boolean = true,
         val whitelistUsers: Set<String> = emptySet()
     ) {
         val isMarkMode: Boolean get() = displayMode == Contract.DISPLAY_MODE_MARK
@@ -48,12 +50,14 @@ object SettingsStore {
             optGrok = prefs.getBoolean(KEY_OPT_GROK, false),
             skipVerified = prefs.getBoolean(KEY_SKIP_VERIFIED, false),
             recordViews = prefs.getBoolean(KEY_RECORD_VIEWS, true),
+            loggingEnabled = prefs.getBoolean(KEY_LOGGING_ENABLED, true),
             whitelistUsers = prefs.getStringSet(KEY_WHITELIST_USERS, emptySet()).orEmpty().toSet(),
             markText = if (storedMarkText == LEGACY_MARK_TEXT) DEFAULT_MARK_TEXT else storedMarkText
         )
     }
 
     fun save(context: Context, settings: Settings) {
+        ModuleLogger.setEnabled(settings.loggingEnabled)
         prefs(context).edit()
             .putInt(KEY_DISPLAY_MODE, settings.displayMode)
             .putBoolean(KEY_OPT_USERNAME, settings.optUsername)
@@ -62,6 +66,7 @@ object SettingsStore {
             .putBoolean(KEY_OPT_GROK, settings.optGrok)
             .putBoolean(KEY_SKIP_VERIFIED, settings.skipVerified)
             .putBoolean(KEY_RECORD_VIEWS, settings.recordViews)
+            .putBoolean(KEY_LOGGING_ENABLED, settings.loggingEnabled)
             .putStringSet(KEY_WHITELIST_USERS, settings.whitelistUsers.toSet())
             .putString(KEY_MARK_TEXT, settings.markText)
             .apply()

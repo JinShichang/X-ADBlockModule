@@ -1,6 +1,7 @@
 package com.xadblock.module.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
@@ -10,6 +11,7 @@ import com.xadblock.module.data.AppDatabase
 import com.xadblock.module.data.BLOCK_EVENT_HISTORY_LIMIT
 import com.xadblock.module.data.BlockEventEntity
 import com.xadblock.module.data.HeartbeatEntity
+import com.xadblock.module.data.ModuleLogger
 import com.xadblock.module.data.POST_VIEW_HISTORY_LIMIT
 import com.xadblock.module.data.POST_VIEW_RETENTION_MS
 import com.xadblock.module.data.PostViewEntity
@@ -224,6 +226,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 reportFailure("订阅同步失败", failure)
             } finally {
                 _syncing.value = false
+            }
+        }
+    }
+
+    fun exportLogs(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    ModuleLogger.exportTo(getApplication(), uri)
+                }
+                _message.value = UiMessage("日志已导出", false)
+            } catch (failure: Throwable) {
+                reportFailure("日志导出失败", failure)
             }
         }
     }

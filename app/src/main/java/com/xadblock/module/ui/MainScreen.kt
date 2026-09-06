@@ -65,7 +65,8 @@ private data class MainShellActions(
     val onAddSubscription: () -> Unit,
     val onEditSubscription: (SubscriptionEntity) -> Unit,
     val onAddLocal: () -> Unit,
-    val onImportLocal: () -> Unit
+    val onImportLocal: () -> Unit,
+    val onExportLogs: () -> Unit
 )
 
 private data class SubscriptionEditorState(
@@ -110,6 +111,11 @@ fun XADBlockApp(viewModel: MainViewModel) {
         }.onSuccess(viewModel::importLocalText)
             .onFailure { viewModel.reportFailure("导入失败", it) }
     }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        if (uri != null) viewModel.exportLogs(uri)
+    }
 
     val shellState = MainShellState(tab, historyVisible, browseVisible, serviceState, snackbarHost)
     val shellActions = MainShellActions(
@@ -134,7 +140,8 @@ fun XADBlockApp(viewModel: MainViewModel) {
             showSubscriptionEditor = true
         },
         onAddLocal = { showLocalEditor = true },
-        onImportLocal = { importLauncher.launch("text/plain") }
+        onImportLocal = { importLauncher.launch("text/plain") },
+        onExportLogs = { exportLauncher.launch("xadblock-logs.txt") }
     )
     MainPageHost(viewModel, shellState, shellActions)
     MainDialogHost(
@@ -248,7 +255,7 @@ private fun MainPageHost(
                             actions.onImportLocal
                         )
                     )
-                    MainTab.SETTINGS -> SettingsPage(viewModel)
+                    MainTab.SETTINGS -> SettingsPage(viewModel, actions.onExportLogs)
                 }
             }
         }

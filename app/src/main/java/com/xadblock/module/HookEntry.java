@@ -18,6 +18,8 @@ import io.github.libxposed.api.XposedModuleInterface.HotReloadedParam;
 import io.github.libxposed.api.XposedModuleInterface.HotReloadingParam;
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 
+import com.xadblock.module.data.Contract;
+
 /**
  * X-ADBlock entry point. Hooks the official X Android app (com.twitter.android),
  * removes posts whose text/url matches the cloud/local keyword rulesets.
@@ -30,6 +32,8 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 public final class HookEntry extends XposedModule {
     private static final String TAG = "[X-ADBlock]";
     private static volatile HookEntry activeInstance;
+    private static volatile boolean loggingEnabled = true;
+    private static volatile boolean loggingPolicyLoaded;
 
     private final List<HookHandle> hookHandles = new CopyOnWriteArrayList<>();
 
@@ -42,14 +46,13 @@ public final class HookEntry extends XposedModule {
         if (!"com.twitter.android".equals(param.getPackageName()) || !param.isFirstPackage()) {
             return;
         }
-        log(Log.INFO, TAG, "loading into " + param.getPackageName());
+        log("loading into " + param.getPackageName());
 
         try {
             hookApplicationAttach();
             TimelineFilter.install(param.getClassLoader());
         } catch (Throwable failure) {
-            log(Log.ERROR, TAG, "failed to install target hooks", failure);
-            logThrowable(failure);
+            logError("failed to install target hooks", failure);
         }
         // Browsing history is independent from filtering: keep it alive even if the
         // feed filter failed to install, and never let it break the filter either.
@@ -90,21 +93,20 @@ public final class HookEntry extends XposedModule {
             HookLogSink.init(context);
             RuleBridge.initialize(context);
         } else {
-            log(Log.ERROR, TAG, "hot reload: no current Application; bridge stays idle");
+            logError("hot reload: no current Application; bridge stays idle");
         }
         if (classLoader == null) {
-            log(Log.ERROR, TAG, "hot reload: target class loader not resolved");
+            logError("hot reload: target class loader not resolved");
             return;
         }
         try {
             hookApplicationAttach();
             TimelineFilter.install(classLoader);
         } catch (Throwable failure) {
-            log(Log.ERROR, TAG, "failed to reinstall hooks after hot reload", failure);
-            logThrowable(failure);
+            logError("failed to reinstall hooks after hot reload", failure);
         }
         PostViewTracker.install(classLoader);
-        log(Log.INFO, TAG, "hot reload complete");
+        log("hot reload complete");
     }
 
     /** The running app instance; the only way back to a Context after a hot reload. */
@@ -129,7 +131,7 @@ public final class HookEntry extends XposedModule {
             }
             return result;
         });
-        log(Log.INFO, TAG, "Application.attach hook installed");
+        log("Application.attach hook installed");
     }
 
     static HookHandle registerHook(
@@ -192,6 +194,58 @@ public final class HookEntry extends XposedModule {
         return instance.getRemotePreferences(group);
     }
 
+    static boolean isLoggingEnabled() {
+        if (!loggingPolicyLoaded && activeInstance != null) {
+            refreshLoggingPolicy();
+        }
+        return loggingEnabled;
+    }
+
+    static void refreshLoggingPolicy() {
+        HookEntry instance = activeInstance;
+        if (instance == null) {
+            return;
+        }
+        Boolean resolved = readRemoteLoggingPolicy();
+        setLoggingEnabled(resolved == null || resolved);
+    }
+
+    static void setLoggingEnabled(boolean enabled) {
+        loggingEnabled = enabled;
+        loggingPolicyLoaded = true;
+        if (!enabled) {
+            HookLogSink.clear();
+        }
+    }
+
+    static void resetLoggingPolicy() {
+        loggingPolicyLoaded = false;
+    }
+
+    private static Boolean readRemoteLoggingPolicy() {
+        String content = readRemoteFile(Contract.SNAPSHOT_FILE);
+        if (content != null) {
+            for (String line : content.split("\\r?\\n")) {
+                if (line.startsWith("#loggingEnabled=")) {
+                    return Boolean.parseBoolean(line.substring("#loggingEnabled=".length()).trim());
+                }
+            }
+        }
+        try {
+            HookEntry instance = activeInstance;
+            if (instance == null) {
+                return null;
+            }
+            SharedPreferences prefs = instance.getRemotePreferences(Contract.PREF_SNAPSHOT);
+            if (prefs.contains(Contract.KEY_LOGGING_ENABLED)) {
+                return prefs.getBoolean(Contract.KEY_LOGGING_ENABLED, true);
+            }
+        } catch (Throwable ignored) {
+            // Use the enabled default when the framework has no policy yet.
+        }
+        return null;
+    }
+
     private HookHandle register(
             Executable executable, String id, XposedInterface.Hooker hooker) {
         HookHandle handle = hook(executable)
@@ -203,6 +257,9 @@ public final class HookEntry extends XposedModule {
     }
 
     static void log(String message) {
+        if (!isLoggingEnabled()) {
+            return;
+        }
         HookEntry instance = activeInstance;
         if (instance != null) {
             instance.log(Log.INFO, TAG, message);
@@ -212,7 +269,37 @@ public final class HookEntry extends XposedModule {
         HookLogSink.log(message);
     }
 
+    private static void logError(String message) {
+        if (!isLoggingEnabled()) {
+            return;
+        }
+        HookEntry instance = activeInstance;
+        if (instance != null) {
+            instance.log(Log.ERROR, TAG, message);
+        } else {
+            Log.e(TAG, message);
+        }
+        HookLogSink.log(message);
+    }
+
+    private static void logError(String message, Throwable throwable) {
+        if (!isLoggingEnabled()) {
+            return;
+        }
+        HookEntry instance = activeInstance;
+        if (instance != null) {
+            instance.log(Log.ERROR, TAG, message, throwable);
+        } else {
+            Log.e(TAG, message, throwable);
+        }
+        HookLogSink.log(message);
+        logThrowable(throwable);
+    }
+
     static void logThrowable(Throwable throwable) {
+        if (!isLoggingEnabled()) {
+            return;
+        }
         java.io.StringWriter writer = new java.io.StringWriter();
         throwable.printStackTrace(new java.io.PrintWriter(writer));
         for (String line : writer.toString().split("\\r?\\n")) {

@@ -17,8 +17,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.PersonSearch
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Delete
@@ -55,7 +57,7 @@ import com.xadblock.module.data.Contract
 private data class ToggleSetting(val title: String, val icon: ImageVector)
 
 @Composable
-internal fun SettingsPage(viewModel: MainViewModel) {
+internal fun SettingsPage(viewModel: MainViewModel, onExportLogs: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -67,7 +69,8 @@ internal fun SettingsPage(viewModel: MainViewModel) {
         MatchOptionsSection(viewModel)
         BrowseHistorySection(viewModel)
         WhitelistSection(viewModel)
-        AboutSection(viewModel)
+        LoggingSection(viewModel)
+        AboutSection(viewModel, onExportLogs)
     }
 }
 
@@ -196,35 +199,69 @@ private fun WhitelistSection(viewModel: MainViewModel) {
     }
 }
 
+@Composable
+private fun LoggingSection(viewModel: MainViewModel) {
+    val settings by viewModel.settings.collectAsState()
+    SettingsSection("诊断日志") {
+        SettingToggle(
+            ToggleSetting("启用诊断日志", Icons.Filled.DataObject),
+            settings.loggingEnabled
+        ) { checked ->
+            viewModel.updateSettings(settings.copy(loggingEnabled = checked))
+        }
+        Text(
+            if (settings.loggingEnabled) "记录模块与 hook 的运行日志"
+            else "已关闭，不会产生新的模块或 hook 日志",
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 private const val PROJECT_URL = "https://github.com/JinShichang/X-ADBlockModule"
 
 @Composable
-private fun AboutSection(viewModel: MainViewModel) {
+private fun AboutSection(viewModel: MainViewModel, onExportLogs: () -> Unit) {
     val context = LocalContext.current
     SettingsSection("关于") {
-        ElevatedCard {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                ListItem(
-                    modifier = Modifier.clickable {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
                         runCatching {
                             context.startActivity(
                                 Intent(Intent.ACTION_VIEW, Uri.parse(PROJECT_URL))
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             )
                         }.onFailure { viewModel.reportFailure("无法打开项目主页", it) }
-                    },
+                    }
+            ) {
+                ListItem(
                     leadingContent = { Icon(Icons.Filled.Link, contentDescription = null) },
-                    headlineContent = { Text("项目主页（GitHub）") },
+                    headlineContent = { Text("GitHub 主页") },
                     supportingContent = { Text(PROJECT_URL, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 )
-                Text(
-                    "X-ADBlock " + BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ")",
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                ListItem(
+                    leadingContent = { Icon(Icons.Filled.Info, contentDescription = null) },
+                    headlineContent = { Text("版本号") },
+                    supportingContent = {
+                        Text("X-ADBlock ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                    }
+                )
+            }
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onExportLogs)
+            ) {
+                ListItem(
+                    leadingContent = { Icon(Icons.Filled.Share, contentDescription = null) },
+                    headlineContent = { Text("导出日志") },
+                    supportingContent = { Text("将模块与 hook 日志保存到你选择的位置") }
                 )
             }
         }

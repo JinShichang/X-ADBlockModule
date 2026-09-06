@@ -18,7 +18,7 @@
 - **用户白名单**：可在设置中维护，也可从过滤历史直接将发帖用户加入白名单。
 - **过滤历史**：记录命中词条、发帖用户、emoji 与异常符号等拦截事件，保留最近 500 条，可在模块界面查看/清空。
 - **帖子浏览历史**：每点开一个帖子自动记录链接与正文摘要（含用户名、时间），列表点按即跳回 X（未安装则走浏览器），顶部关键字搜索，同一帖子只保留一条并按最近浏览时间置顶；保留最近 7 天，可删除单条或一键清空，也能在设置里关闭记录。
-- **诊断日志**：`/sdcard/Download/xadblock_module.log`（模块 App 侧），hook 侧日志经心跳广播捎带；首页运行状态仅显示本模块是否已在 LSPosed 中激活。
+- **诊断日志**：写入模块私有目录 `files/logs/xadblock_module.log`（模块 App 与 hook 日志合并保存，不再写入公共 Download）；设置页可关闭日志，或在“关于”区域通过“导出日志”卡片使用系统文件选择器导出。
 
 ## 技术方案
 
@@ -28,7 +28,7 @@
   - 行渲染：`com.x.jetfuel.v2.element.attribute.h#a(...)`（整行包含头像/用户名/正文）。
   - 内容渲染：`com.x.urt.items.post.i5#invoke`；帖子渲染状态 `com.x.urt.items.post.b5`（字段 `a`=entryId、`g`=正文、`i`=displayTextRange）。
   - 浏览历史：`com.x.urt.items.post.y`（FocalPostState）构造，字段 `a` 即被点开帖子的渲染状态（`b`=postId `com.x.models.z5`、`e`=作者 `com.x.models.mh`）；只有详情页焦点帖会进入该状态，列表滚动不会误记。链接按 `com.x.models.s5#getUrl()` 的形状拼装为 `https://x.com/<handle>/status/<id>`，用户名不可信时退回 `https://x.com/i/status/<id>`。
-- **跨进程通道**：模块 App 通过 LibXposed Service 的 **Remote Preferences** 写入规则快照，X 进程通过 `XposedInterface.getRemotePreferences()` 读取；事件回传走 setPackage 广播（`ACTION_BLOCK_EVENTS` / `ACTION_VIEW_EVENTS` / `ACTION_HEARTBEAT`）。
+- **跨进程通道**：模块 App 通过 LibXposed Service 的 **Remote Preferences** 写入规则快照，X 进程通过 `XposedInterface.getRemotePreferences()` 读取；事件与 hook 日志回传走 setPackage 广播（`ACTION_BLOCK_EVENTS` / `ACTION_VIEW_EVENTS` / `ACTION_HEARTBEAT` / `ACTION_HOOK_LOGS`）。
 - **性能**：关键词匹配用 Aho-Corasick 自动机（编译期构建，一次遍历出所有命中）；entryId 评估缓存避免重复匹配；规则快照变更由心跳线程每 120s 检查一次。
 - **构建链**：AGP 8.7.3 / Kotlin 2.0.21 / Gradle 8.11.1 / compileSdk 36 / minSdk 26；LibXposed API 102；Room 走 KSP。
 
@@ -63,7 +63,7 @@ app/build/outputs/apk/debug/app-debug.apk
   - 「本地规则」：导入 TXT 或清空本地规则。
   - 「历史」：查看或清空命中记录。
   - 首页「浏览历史」：查看点开过的帖子，支持搜索、单条删除与一键清空（保留 7 天）。
-  - 「设置」底部「关于」：显示当前版本，点按打开本项目 GitHub 主页。
+  - 「设置」底部「关于」：分别显示 GitHub 主页、版本号，并提供日志导出。
 4. 点进任意推文查看回复效果。
 
 模块配置由现代元数据声明：`META-INF/xposed/module.prop`、`java_init.list`、`scope.list`。API 102 支持模块热重载；更新模块后，旧代 hook 会先清理，再由新代重新安装。

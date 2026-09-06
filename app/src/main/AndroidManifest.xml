@@ -32,6 +32,7 @@
             <intent-filter>
                 <action android:name="com.xadblock.module.ACTION_BLOCK_EVENTS" />
                 <action android:name="com.xadblock.module.ACTION_HEARTBEAT" />
+                <action android:name="com.xadblock.module.ACTION_HOOK_LOGS" />
                 <action android:name="com.xadblock.module.ACTION_VIEW_EVENTS" />
             </intent-filter>
         </receiver>

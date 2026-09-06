@@ -6,7 +6,7 @@ import android.content.Intent
 import com.xadblock.module.XAdApplication
 
 /**
- * Receives block events and heartbeats broadcast by the injected X process.
+ * Receives block events, heartbeats, and hook log batches broadcast by the injected X process.
  * The channel is a package-scoped exported broadcast (the ContentProvider route
  * is blocked on Android 11+ by package visibility).
  */
@@ -22,6 +22,7 @@ class HookBridgeReceiver : BroadcastReceiver() {
                     Contract.ACTION_BLOCK_EVENTS -> handleBlockEvents(context, intent)
                     Contract.ACTION_VIEW_EVENTS -> handleViewEvents(context, intent)
                     Contract.ACTION_HEARTBEAT -> handleHeartbeat(context, intent)
+                    Contract.ACTION_HOOK_LOGS -> handleHookLogs(intent)
                 }
             } catch (failure: Throwable) {
                 ModuleLogger.log("receiver error: $failure")
@@ -97,8 +98,14 @@ class HookBridgeReceiver : BroadcastReceiver() {
         intent.getStringExtra(Contract.EXTRA_SELFCHECK)?.let { summary ->
             ModuleLogger.log("hook selfcheck: $summary")
         }
-        intent.getStringExtra(Contract.EXTRA_LOG)?.let { lines ->
-            lines.lineSequence().forEach { ModuleLogger.log("hook|$it") }
-        }
+        intent.getStringExtra(Contract.EXTRA_LOG)?.let(::handleHookLogBatch)
+    }
+
+    private fun handleHookLogs(intent: Intent) {
+        intent.getStringExtra(Contract.EXTRA_LOG)?.let(::handleHookLogBatch)
+    }
+
+    private fun handleHookLogBatch(lines: String) {
+        ModuleLogger.logHookBatch(lines)
     }
 }
